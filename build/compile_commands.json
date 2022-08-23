@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/denis/projects/stm32/acc1/build",
+  "command": "/usr/bin/g++    -g   -o CMakeFiles/acc1.dir/main.cpp.o -c /home/denis/projects/stm32/acc1/main.cpp",
+  "file": "/home/denis/projects/stm32/acc1/main.cpp"
+}
+]
