@@ -75,10 +75,10 @@ int main(void)
   uint16_t led4cnt = 5000;
   uint16_t led5cnt = 15000;
   uint16_t led6cnt = 25000;
-  uint8_t led3tm = 50;
-  uint8_t led4tm = 50;
-  uint8_t led5tm = 50;
-  uint8_t led6tm = 50;
+  uint16_t led3tm = 500;
+  uint16_t led4tm = 500;
+  uint16_t led5tm = 500;
+  uint16_t led6tm = 500;
 
   /* USER CODE END 1 */
 
@@ -118,25 +118,25 @@ int main(void)
 	    // LD3
 	    if(led3cnt == 0) {
 	      GPIOD->ODR |= 0x8000;
-	    } else if(led3cnt > 50) {
+	    } else if(led3cnt > led3tm) {
 	      GPIOD->ODR &= ~0x8000;
 	    }
 	    // LD4
 	    if(led4cnt == 0) {
 	      GPIOD->ODR |= 0x4000;
-	    } else if(led4cnt > 50) {
+	    } else if(led4cnt > led4tm) {
 	      GPIOD->ODR &= ~0x4000;
 	    }
 	    // LD5
 	    if(led5cnt == 0) {
 	      GPIOD->ODR |= 0x2000;
-	    } else if(led5cnt > 50) {
+	    } else if(led5cnt > led5tm) {
 	      GPIOD->ODR &= ~0x2000;
 	    }
 	    // LD5
 	    if(led6cnt == 0) {
 	      GPIOD->ODR |= 0x1000;
-	    } else if(led6cnt > 50) {
+	    } else if(led6cnt > led6tm) {
 	      GPIOD->ODR &= ~0x1000;
 	    }
     /* USER CODE END WHILE */
