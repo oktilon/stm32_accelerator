@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := acc1
+BUILD_ARTIFACT_NAME := stm32_accelerator
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-acc1.elf \
+stm32_accelerator.elf \
 
 MAP_FILES += \
-acc1.map \
+stm32_accelerator.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-acc1.list \
+stm32_accelerator.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: acc1.elf secondary-outputs
+main-build: stm32_accelerator.elf secondary-outputs
 
 # Tool invocations
-acc1.elf acc1.map: $(OBJS) $(USER_OBJS) /home/denis/projects/stm32/acc1/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "acc1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/denis/projects/stm32/acc1/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="acc1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm32_accelerator.elf stm32_accelerator.map: $(OBJS) $(USER_OBJS) /home/den/projects/stm32/stm32_accelerator/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "stm32_accelerator.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/den/projects/stm32/stm32_accelerator/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32_accelerator.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-acc1.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "acc1.list"
+stm32_accelerator.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "stm32_accelerator.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) acc1.elf acc1.list acc1.map default.size.stdout
+	-$(RM) default.size.stdout stm32_accelerator.elf stm32_accelerator.list stm32_accelerator.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

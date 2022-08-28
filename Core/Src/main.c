@@ -267,10 +267,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint8_t xmeet(uint8_t data, uint8_t receive)
+uint8_t xmeet(uint8_t data, uint32_t timeout)
 {
 	uint8_t ret = 0;
-	while(!(SPI1->SR & SPI_SR_TXE)); // Transmit buffer Empty
+	uint32_t tickstart = HAL_GetTick();
+	while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
+	{
+		if((HAL_GetTick() - tickstart) > timeout)
+		{
+			return 0;
+		}
+	}
 	SPI1->DR = data;
 	if(1)
 	{
