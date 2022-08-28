@@ -31,9 +31,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define dummy           0x00
+#define XM_Tx			0
+#define XM_TxRx			1
+#define XM_Timeout		10
+#define dummy           0xFF
 #define NSS_DISABLE()   (GPIOE->ODR |= 0x0008)
 #define NSS_ENABLE()    (GPIOE->ODR &= 0xFFF7)
+#define MAX_TICK		30000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,7 +57,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
-uint8_t xmeet(uint8_t data, uint8_t receive);
+uint8_t xmeet(uint8_t data, int read, uint32_t timeout);
 uint8_t read_reg(uint8_t addr);
 void write_reg(uint8_t addr, uint8_t data);
 /* USER CODE END PFP */
@@ -72,13 +76,16 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint8_t chipId = 0;
   uint16_t led3cnt = 0;
-  uint16_t led4cnt = 5000;
-  uint16_t led5cnt = 15000;
-  uint16_t led6cnt = 25000;
-  uint16_t led3tm = 500;
-  uint16_t led4tm = 500;
-  uint16_t led5tm = 500;
-  uint16_t led6tm = 500;
+  uint16_t led4cnt = 0;
+  uint16_t led5cnt = 0;
+  uint16_t led6cnt = 0;
+  uint16_t led3tm = 0;
+  uint16_t led4tm = 0;
+  uint16_t led5tm = 0;
+  uint16_t led6tm = 0;
+  uint8_t accX = 0;
+  uint8_t accY = 0;
+  uint8_t delim = MAX_TICK / 127;
 
   /* USER CODE END 1 */
 
@@ -104,6 +111,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   chipId = read_reg(0x0F); // WHO_AM_I register;
+  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
 
   /* USER CODE END 2 */
 
@@ -111,10 +119,41 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	    if(++led3cnt > 65534) led3cnt = 0;
-	    if(++led4cnt > 65534) led4cnt = 0;
-	    if(++led5cnt > 65534) led5cnt = 0;
-	    if(++led6cnt > 65534) led6cnt = 0;
+	    if(++led3cnt > MAX_TICK) led3cnt = 0;
+	    if(++led4cnt > MAX_TICK) led4cnt = 0;
+	    if(++led5cnt > MAX_TICK) led5cnt = 0;
+	    if(++led6cnt > MAX_TICK) led6cnt = 0;
+
+	    accX = read_reg(0x29);
+	    accY = read_reg(0x2B);
+	    // accZ = read_reg(0x2D);
+
+	    if(accX > 0 && accX < 255) {
+	    	if(accX < 128) {
+	    		led3tm = delim * accX;
+	    		led6tm = 0;
+	    	} else {
+	    		led6tm = delim * (accX - 127);
+	    		led3tm = 0;
+	    	}
+	    } else {
+	    	led6tm = 0;
+	    	led3tm = 0;
+	    }
+
+	    if(accY > 0 && accY < 255) {
+	    	if(accY < 128) {
+	    		led4tm = delim * accY;
+	    		led5tm = 0;
+	    	} else {
+	    		led5tm = delim * (accY - 127);
+	    		led4tm = 0;
+	    	}
+	    } else {
+	    	led4tm = 0;
+	    	led5tm = 0;
+	    }
+
 	    // LD3
 	    if(led3cnt == 0) {
 	      GPIOD->ODR |= 0x8000;
@@ -267,39 +306,64 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint8_t xmeet(uint8_t data, uint32_t timeout)
+uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 {
 	uint8_t ret = 0;
 	uint32_t tickstart = HAL_GetTick();
-	while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
+	// !!! Only after send first byte!
+	// while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
+	// {
+	// 	if((HAL_GetTick() - tickstart) > timeout)
+	// 	{
+	// 		return ret;
+	// 	}
+	// }
+	// Send data
+	SPI1->DR = data;
+
+	if( read > XM_Tx )
+	{
+		while(!(SPI1->CR1 & SPI_SR_RXNE)) // Receive buffer Not Empty
+		{
+			if((HAL_GetTick() - tickstart) > timeout)
+			{
+				return ret;
+			}
+		}
+		ret = SPI1->DR;
+	}
+
+	while((SPI1->SR & SPI_SR_BSY)) // Busy flag
 	{
 		if((HAL_GetTick() - tickstart) > timeout)
 		{
-			return 0;
+			break;
 		}
 	}
-	SPI1->DR = data;
-	if(1)
-	{
-		// while(!(SPI1->SR & SPI_SR_RXNE)); // Receive buffer Not Empty
-		ret = SPI1->DR;
-	}
-	while((SPI1->SR & SPI_SR_BSY)); // Busy flag
-	//	HAL_SPI_Transmit(&hspi1, &data, 1, 10);
+
+	do {
+		__IO uint32_t tmpreg_ovr = 0x00U;
+		tmpreg_ovr = SPI1->DR;
+		tmpreg_ovr = SPI1->SR;
+		(void)tmpreg_ovr;
+	} while(0U);
+
 	return ret;
 }
+
 
 uint8_t read_reg(uint8_t addr)
 {
 	uint8_t data = 0;
+	uint8_t empty = dummy;
 
 	addr |= 0x80; // To read data, SET highest bit of address (LIS302DL Datasheet)
 
 	NSS_ENABLE();
-  HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
-  HAL_SPI_TransmitReceive(&hspi1, &addr, &data, 1, 10);
-	// xmeet(addr, 0);
-	// data = xmeet(dummy, 1);
+	HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
+	HAL_SPI_TransmitReceive(&hspi1, &empty, &data, 1, 10);
+	// xmeet(addr, XM_Tx, XM_Timeout);
+	// data = xmeet(dummy, XM_TxRx, XM_Timeout);
 	NSS_DISABLE();
 
 	return data;
@@ -307,8 +371,10 @@ uint8_t read_reg(uint8_t addr)
 
 void write_reg(uint8_t addr, uint8_t data) {
 	NSS_ENABLE();
-	xmeet(addr, 0);
-	xmeet(data, 0);
+	HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
+	HAL_SPI_Transmit(&hspi1, &data, 1, 10);
+	// xmeet(addr, XM_Tx, XM_Timeout);
+	// xmeet(data, XM_Tx, XM_Timeout);
 	NSS_DISABLE();
 }
 /* USER CODE END 4 */
