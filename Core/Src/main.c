@@ -83,8 +83,8 @@ int main(void)
   uint16_t led4tm = 0;
   uint16_t led5tm = 0;
   uint16_t led6tm = 0;
-  uint8_t accX = 0;
-  uint8_t accY = 0;
+  int8_t accX = 0;
+  int8_t accY = 0;
   uint8_t delim = MAX_TICK / 127;
 
   /* USER CODE END 1 */
@@ -128,55 +128,45 @@ int main(void)
 	    accY = read_reg(0x2B);
 	    // accZ = read_reg(0x2D);
 
-	    if(accX > 0 && accX < 255) {
-	    	if(accX < 128) {
-	    		led3tm = delim * accX;
-	    		led6tm = 0;
-	    	} else {
-	    		led6tm = delim * (accX - 127);
-	    		led3tm = 0;
-	    	}
-	    } else {
-	    	led6tm = 0;
-	    	led3tm = 0;
+	    if(accY > 0) {
+			led3tm = delim * accY;
+			led6tm = 0;
+		} else {
+			led3tm = 0;
+			led6tm = delim * abs(accY);
 	    }
 
-	    if(accY > 0 && accY < 255) {
-	    	if(accY < 128) {
-	    		led4tm = delim * accY;
-	    		led5tm = 0;
-	    	} else {
-	    		led5tm = delim * (accY - 127);
-	    		led4tm = 0;
-	    	}
-	    } else {
-	    	led4tm = 0;
-	    	led5tm = 0;
-	    }
+	    if(accX > 0) {
+			led5tm = delim * accX;
+			led4tm = 0;
+		} else {
+			led5tm = 0;
+			led4tm = delim * abs(accX);
+		}
 
 	    // LD3
 	    if(led3cnt == 0) {
-	      GPIOD->ODR |= 0x8000;
+	      GPIOD->ODR |= 0x2000;
 	    } else if(led3cnt > led3tm) {
-	      GPIOD->ODR &= ~0x8000;
+	      GPIOD->ODR &= ~0x2000;
 	    }
 	    // LD4
 	    if(led4cnt == 0) {
-	      GPIOD->ODR |= 0x4000;
+	      GPIOD->ODR |= 0x1000;
 	    } else if(led4cnt > led4tm) {
-	      GPIOD->ODR &= ~0x4000;
+	      GPIOD->ODR &= ~0x1000;
 	    }
 	    // LD5
 	    if(led5cnt == 0) {
-	      GPIOD->ODR |= 0x2000;
+	      GPIOD->ODR |= 0x4000;
 	    } else if(led5cnt > led5tm) {
-	      GPIOD->ODR &= ~0x2000;
+	      GPIOD->ODR &= ~0x4000;
 	    }
 	    // LD5
 	    if(led6cnt == 0) {
-	      GPIOD->ODR |= 0x1000;
+	      GPIOD->ODR |= 0x8000;
 	    } else if(led6cnt > led6tm) {
-	      GPIOD->ODR &= ~0x1000;
+	      GPIOD->ODR &= ~0x8000;
 	    }
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
@@ -313,7 +303,7 @@ uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 
 	(void)SPI1->DR;
 	//!!! Only after send first byte!
-	while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
+	while(!(SPI1->SR & SPI_SR_TXE)) // Tx buffer empty flag
 	{
 		if((HAL_GetTick() - tickstart) > timeout)
 		{
@@ -325,7 +315,7 @@ uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 
 	if( read > XM_Tx )
 	{
-		while(!(SPI1->CR1 & SPI_SR_RXNE)) // Receive buffer Not Empty
+		while(!(SPI1->SR & SPI_SR_RXNE)) // Receive buffer Not Empty
 		{
 			if((HAL_GetTick() - tickstart) > timeout)
 			{
@@ -357,7 +347,6 @@ uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 uint8_t read_reg(uint8_t addr)
 {
 	uint8_t data = 0;
-	uint8_t empty = dummy;
 
 	addr |= 0x80; // To read data, SET highest bit of address (LIS302DL Datasheet)
 
@@ -373,10 +362,10 @@ uint8_t read_reg(uint8_t addr)
 
 void write_reg(uint8_t addr, uint8_t data) {
 	NSS_ENABLE();
-	HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
-	HAL_SPI_Transmit(&hspi1, &data, 1, 10);
-	// xmeet(addr, XM_Tx, XM_Timeout);
-	// xmeet(data, XM_Tx, XM_Timeout);
+	// HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
+	// HAL_SPI_Transmit(&hspi1, &data, 1, 10);
+	xmeet(addr, XM_Tx, XM_Timeout);
+	xmeet(data, XM_Tx, XM_Timeout);
 	NSS_DISABLE();
 }
 /* USER CODE END 4 */
