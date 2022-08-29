@@ -310,16 +310,18 @@ uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 {
 	uint8_t ret = 0;
 	uint32_t tickstart = HAL_GetTick();
-	// !!! Only after send first byte!
-	// while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
-	// {
-	// 	if((HAL_GetTick() - tickstart) > timeout)
-	// 	{
-	// 		return ret;
-	// 	}
-	// }
+
+	(void)SPI1->DR;
+	//!!! Only after send first byte!
+	while(!(SPI1->CR1 & SPI_SR_TXE)) // Tx buffer empty flag
+	{
+		if((HAL_GetTick() - tickstart) > timeout)
+		{
+			return ret;
+		}
+	}
 	// Send data
-	SPI1->DR = data;
+	*((__IO uint8_t *)&(SPI1->DR)) = data;
 
 	if( read > XM_Tx )
 	{
@@ -330,7 +332,7 @@ uint8_t xmeet(uint8_t data, int read, uint32_t timeout)
 				return ret;
 			}
 		}
-		ret = SPI1->DR;
+		ret = (uint8_t)(SPI1->DR);
 	}
 
 	while((SPI1->SR & SPI_SR_BSY)) // Busy flag
@@ -360,10 +362,10 @@ uint8_t read_reg(uint8_t addr)
 	addr |= 0x80; // To read data, SET highest bit of address (LIS302DL Datasheet)
 
 	NSS_ENABLE();
-	HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
-	HAL_SPI_TransmitReceive(&hspi1, &empty, &data, 1, 10);
-	// xmeet(addr, XM_Tx, XM_Timeout);
-	// data = xmeet(dummy, XM_TxRx, XM_Timeout);
+	// HAL_SPI_Transmit(&hspi1, &addr, 1, 10);
+	// HAL_SPI_TransmitReceive(&hspi1, &empty, &data, 1, 10);
+	xmeet(addr, XM_Tx, XM_Timeout);
+	data = xmeet(dummy, XM_TxRx, XM_Timeout);
 	NSS_DISABLE();
 
 	return data;
