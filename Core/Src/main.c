@@ -46,6 +46,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c3;
+
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
@@ -56,10 +58,13 @@ SPI_HandleTypeDef hspi1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_I2C3_Init(void);
 /* USER CODE BEGIN PFP */
 uint8_t xmeet(uint8_t data, int read, uint32_t timeout);
 uint8_t read_reg(uint8_t addr);
 void write_reg(uint8_t addr, uint8_t data);
+uint8_t ds1307_read(uint8_t addr);
+void ds1307_write(uint8_t addr, uint8_t data);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -83,9 +88,9 @@ int main(void)
   uint16_t led4tm = 0;
   uint16_t led5tm = 0;
   uint16_t led6tm = 0;
-  uint8_t accX = 0;
-  uint8_t accY = 0;
-  uint8_t delim = MAX_TICK / 127;
+//  uint8_t accX = 0;
+//  uint8_t accY = 0;
+//  uint8_t delim = MAX_TICK / 127;
 
   /* USER CODE END 1 */
 
@@ -108,10 +113,17 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
+  MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
 
-  chipId = read_reg(0x0F); // WHO_AM_I register;
-  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
+//  chipId = read_reg(0x0F); // WHO_AM_I register;
+//  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
+  uint16_t DevAddress = 0xD0;
+  uint8_t pData = 0x00;
+  uint16_t Size = 1;
+  uint32_t Timeout = 10;
+
+  HAL_I2C_Master_Transmit(hi2c3, DevAddress, &pData, 1, Timeout);
 
   /* USER CODE END 2 */
 
@@ -124,35 +136,35 @@ int main(void)
 	    if(++led5cnt > MAX_TICK) led5cnt = 0;
 	    if(++led6cnt > MAX_TICK) led6cnt = 0;
 
-	    accX = read_reg(0x29);
-	    accY = read_reg(0x2B);
-	    // accZ = read_reg(0x2D);
-
-	    if(accX > 0 && accX < 255) {
-	    	if(accX < 128) {
-	    		led3tm = delim * accX;
-	    		led6tm = 0;
-	    	} else {
-	    		led6tm = delim * (accX - 127);
-	    		led3tm = 0;
-	    	}
-	    } else {
-	    	led6tm = 0;
-	    	led3tm = 0;
-	    }
-
-	    if(accY > 0 && accY < 255) {
-	    	if(accY < 128) {
-	    		led4tm = delim * accY;
-	    		led5tm = 0;
-	    	} else {
-	    		led5tm = delim * (accY - 127);
-	    		led4tm = 0;
-	    	}
-	    } else {
-	    	led4tm = 0;
-	    	led5tm = 0;
-	    }
+//	    accX = read_reg(0x29);
+//	    accY = read_reg(0x2B);
+//	    // accZ = read_reg(0x2D);
+//
+//	    if(accX > 0 && accX < 255) {
+//	    	if(accX < 128) {
+//	    		led3tm = delim * accX;
+//	    		led6tm = 0;
+//	    	} else {
+//	    		led6tm = delim * (accX - 127);
+//	    		led3tm = 0;
+//	    	}
+//	    } else {
+//	    	led6tm = 0;
+//	    	led3tm = 0;
+//	    }
+//
+//	    if(accY > 0 && accY < 255) {
+//	    	if(accY < 128) {
+//	    		led4tm = delim * accY;
+//	    		led5tm = 0;
+//	    	} else {
+//	    		led5tm = delim * (accY - 127);
+//	    		led4tm = 0;
+//	    	}
+//	    } else {
+//	    	led4tm = 0;
+//	    	led5tm = 0;
+//	    }
 
 	    // LD3
 	    if(led3cnt == 0) {
@@ -179,9 +191,10 @@ int main(void)
 	      GPIOD->ODR &= ~0x1000;
 	    }
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
-  return (int)chipId;
+  return 0;
   /* USER CODE END 3 */
 }
 
@@ -228,6 +241,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.ClockSpeed = 100000;
+  hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+  I2C3->CR1 |= I2C_CR1_ICE;
+  /* USER CODE END I2C3_Init 2 */
+
 }
 
 /**
@@ -282,6 +329,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
@@ -378,6 +426,13 @@ void write_reg(uint8_t addr, uint8_t data) {
 	// xmeet(addr, XM_Tx, XM_Timeout);
 	// xmeet(data, XM_Tx, XM_Timeout);
 	NSS_DISABLE();
+}
+
+uint8_t ds1307_read(uint8_t addr) {
+	//
+}
+void ds1307_write(uint8_t addr, uint8_t data) {
+	//
 }
 /* USER CODE END 4 */
 
