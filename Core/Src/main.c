@@ -38,6 +38,8 @@
 #define NSS_DISABLE()   (GPIOE->ODR |= 0x0008)
 #define NSS_ENABLE()    (GPIOE->ODR &= 0xFFF7)
 #define MAX_TICK		30000
+#define DS1307_ADDR		0xD0
+#define DS1307_Timeout	10
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -88,6 +90,7 @@ int main(void)
   uint16_t led4tm = 0;
   uint16_t led5tm = 0;
   uint16_t led6tm = 0;
+  uint8_t uSec = 0;
 //  uint8_t accX = 0;
 //  uint8_t accY = 0;
 //  uint8_t delim = MAX_TICK / 127;
@@ -118,12 +121,9 @@ int main(void)
 
 //  chipId = read_reg(0x0F); // WHO_AM_I register;
 //  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
-  uint16_t DevAddress = 0xD0;
-  uint8_t pData = 0x00;
-  uint16_t Size = 1;
-  uint32_t Timeout = 10;
 
-  HAL_I2C_Master_Transmit(hi2c3, DevAddress, &pData, 1, Timeout);
+  ds1307_write(0x00, 0x80);
+
 
   /* USER CODE END 2 */
 
@@ -135,6 +135,8 @@ int main(void)
 	    if(++led4cnt > MAX_TICK) led4cnt = 0;
 	    if(++led5cnt > MAX_TICK) led5cnt = 0;
 	    if(++led6cnt > MAX_TICK) led6cnt = 0;
+
+	    uSec = ds1307_read(0x00);
 
 //	    accX = read_reg(0x29);
 //	    accY = read_reg(0x2B);
@@ -428,7 +430,8 @@ void write_reg(uint8_t addr, uint8_t data) {
 }
 
 uint8_t ds1307_read(uint8_t addr) {
-	//
+	uint8_t data = 0;
+	HAL_I2C_Master_Transmit(hi2c3, DS1307_ADDR, &data, 1, DS1307_Timeout);
 }
 void ds1307_write(uint8_t addr, uint8_t data) {
 	//
