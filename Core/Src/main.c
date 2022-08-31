@@ -40,6 +40,17 @@
 #define MAX_TICK		30000
 #define DS1307_ADDR		0xD0
 #define DS1307_Timeout	10
+#define DS3231_ADDR		0xD0
+#define DS3231_Timeout	10
+#define RTC_REG_SEC  0x00
+#define RTC_REG_MIN  0x01
+#define RTC_REG_HOUR 0x02
+#define RTC_REG_WEEK 0x03
+#define RTC_REG_DAY  0x04
+#define RTC_REG_MON  0x05
+#define RTC_REG_YEAR 0x06
+#define RTC_ALARM    0x0A
+#define RTC_24       0x40
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,6 +59,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c3;
 
 SPI_HandleTypeDef hspi1;
@@ -61,12 +73,20 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_I2C3_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 uint8_t xmeet(uint8_t data, int read, uint32_t timeout);
 uint8_t read_reg(uint8_t addr);
 void write_reg(uint8_t addr, uint8_t data);
 uint8_t ds1307_read(uint8_t addr);
 void ds1307_write(uint8_t addr, uint8_t data);
+uint8_t ds3231_read(uint8_t addr);
+void ds3231_write(uint8_t addr, uint8_t data);
+uint8_t bcd2dec(uint8_t);
+uint8_t dec2bcd(uint8_t);
+void set_time(int y, int m, int d, int h, int min, int s);
+void set_alarm(int h, int m);
+int8_t check_alarm();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -90,6 +110,7 @@ int main(void)
   uint16_t led4tm = 0;
   uint16_t led5tm = 0;
   uint16_t led6tm = 0;
+  uint8_t uMin = 0;
   uint8_t uSec = 0;
 //  uint8_t accX = 0;
 //  uint8_t accY = 0;
@@ -117,12 +138,14 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_I2C3_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
 //  chipId = read_reg(0x0F); // WHO_AM_I register;
 //  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
 
-  ds1307_write(0x00, 0x80);
+  set_time(2022, 9, 1, 9, 0, 0);
+  set_alarm(9, 1);
 
 
   /* USER CODE END 2 */
@@ -136,7 +159,13 @@ int main(void)
 	    if(++led5cnt > MAX_TICK) led5cnt = 0;
 	    if(++led6cnt > MAX_TICK) led6cnt = 0;
 
-	    uSec = ds1307_read(0x00);
+	    if(check_alarm()) {
+	    	led3tm = 20000;
+	    	led6tm = 20000;
+	    }
+
+	    uMin = bcd2dec(ds3231_read(RTC_REG_MIN));
+	    uSec = bcd2dec(ds3231_read(RTC_REG_SEC));
 
 //	    accX = read_reg(0x29);
 //	    accY = read_reg(0x2B);
@@ -246,6 +275,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief I2C3 Initialization Function
   * @param None
   * @retval None
@@ -274,7 +337,6 @@ static void MX_I2C3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2C3_Init 2 */
-  I2C3->CR1 |= I2C_CR1_ICE;
   /* USER CODE END I2C3_Init 2 */
 
 }
@@ -332,6 +394,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
@@ -431,11 +494,52 @@ void write_reg(uint8_t addr, uint8_t data) {
 
 uint8_t ds1307_read(uint8_t addr) {
 	uint8_t data = 0;
-	HAL_I2C_Master_Transmit(hi2c3, DS1307_ADDR, &data, 1, DS1307_Timeout);
+	HAL_I2C_Master_Transmit(&hi2c3, DS1307_ADDR, &addr, 1, DS1307_Timeout);
+	HAL_I2C_Master_Receive(&hi2c3, DS1307_ADDR, &data, 1, DS1307_Timeout);
+	return data;
 }
 void ds1307_write(uint8_t addr, uint8_t data) {
-	//
+	uint8_t buf[2] = {addr, data};
+	HAL_I2C_Master_Transmit(&hi2c3, DS1307_ADDR, &buf, 2, DS1307_Timeout);
 }
+uint8_t ds3231_read(uint8_t addr) {
+	uint8_t data = 0;
+	HAL_I2C_Master_Transmit(&hi2c1, DS3231_ADDR, &addr, 1, DS3231_Timeout);
+	HAL_I2C_Master_Receive(&hi2c1, DS3231_ADDR, &data, 1, DS3231_Timeout);
+	return data;
+}
+void ds3231_write(uint8_t addr, uint8_t data) {
+	uint8_t buf[2] = {addr, data};
+	HAL_I2C_Master_Transmit(&hi2c1, DS3231_ADDR, buf, 2, DS3231_Timeout);
+}
+uint8_t bcd2dec(uint8_t bcd) {
+	uint8_t u = bcd & 0xF;
+	uint8_t d = (bcd & 0xF0) >> 4;
+	return u + 10 * d;
+}
+uint8_t dec2bcd(uint8_t dec) {
+	uint8_t d = (dec / 10) << 4;
+	uint8_t u = dec % 10;
+	return d + u;
+}
+void set_time(int y, int m, int d, int h, int min, int s) {
+	ds3231_write(RTC_REG_YEAR, dec2bcd(y % 10));
+	ds3231_write(RTC_REG_MON , dec2bcd(m));
+	ds3231_write(RTC_REG_DAY , dec2bcd(d));
+	ds3231_write(RTC_REG_HOUR, dec2bcd(h));
+	ds3231_write(RTC_REG_MIN , dec2bcd(min));
+	ds3231_write(RTC_REG_SEC , dec2bcd(s));
+}
+void set_alarm(int h, int m) {
+	ds3231_write(RTC_ALARM + RTC_REG_MIN , dec2bcd(m));
+	ds3231_write(RTC_ALARM + RTC_REG_HOUR, dec2bcd(h));
+	ds3231_write(RTC_ALARM + RTC_REG_DAY , 0x80);
+}
+int8_t check_alarm() {
+	uint8_t status = ds3231_read(0x0F);
+	return (status & 0x2) ? 1 : 0;
+}
+
 /* USER CODE END 4 */
 
 /**
