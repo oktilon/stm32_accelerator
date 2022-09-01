@@ -65,6 +65,8 @@ I2C_HandleTypeDef hi2c3;
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
+uint8_t uMin = 0;
+uint8_t uSec = 0;
 
 /* USER CODE END PV */
 
@@ -110,8 +112,6 @@ int main(void)
   uint16_t led4tm = 0;
   uint16_t led5tm = 0;
   uint16_t led6tm = 0;
-  uint8_t uMin = 0;
-  uint8_t uSec = 0;
 //  uint8_t accX = 0;
 //  uint8_t accY = 0;
 //  uint8_t delim = MAX_TICK / 127;
@@ -166,6 +166,7 @@ int main(void)
 
 	    uMin = bcd2dec(ds3231_read(RTC_REG_MIN));
 	    uSec = bcd2dec(ds3231_read(RTC_REG_SEC));
+	    HAL_Delay(100);
 
 //	    accX = read_reg(0x29);
 //	    accY = read_reg(0x2B);
