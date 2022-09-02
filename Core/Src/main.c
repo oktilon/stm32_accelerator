@@ -141,7 +141,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
-//  chipId = read_reg(0x0F); // WHO_AM_I register;
+  chipId = read_reg(0x0F); // WHO_AM_I register;
 //  write_reg(0x20, 0x47); // PD + Zen + Yen + Xen
 
   set_time(2022, 9, 1, 9, 0, 0);
