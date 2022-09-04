@@ -503,6 +503,22 @@ void ds1307_write(uint8_t addr, uint8_t data) {
 	uint8_t buf[2] = {addr, data};
 	HAL_I2C_Master_Transmit(&hi2c3, DS1307_ADDR, &buf, 2, DS1307_Timeout);
 }
+
+void i2c1_start() {
+  I2C1->CR1 |= I2C_CR1_ACK; // (1<<10);  // Enable the ACK
+  I2C1->CR1 |= I2C_CR1_START; // (1<<8);  // Generate START
+}
+
+void i2c1_address(uint8_t addr7bit, uint8_t read) {
+  uint8_t addr = addr7bit << 1;
+  if(read) {
+    addr |= 0x1;
+  }
+  I2C1->DR = addr;  //  send the address
+  while (!(I2C1->SR1 & I2C_SR1_ADDR));  // wait for ADDR bit to set (1<<1)
+  uint8_t temp = I2C1->SR1 | I2C1->SR2;  // read SR1 and SR2 to clear the ADDR bit
+}
+
 uint8_t ds3231_read(uint8_t addr) {
 	uint8_t data = 0;
 	HAL_I2C_Master_Transmit(&hi2c1, DS3231_ADDR, &addr, 1, DS3231_Timeout);
